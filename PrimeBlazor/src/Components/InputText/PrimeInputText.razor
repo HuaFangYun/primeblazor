@@ -1,12 +1,16 @@
 @namespace PrimeBlazor
 
-<input type="text" value="@Value" class="p-inputtext p-component @(filled ? "p-filled" : "") @CssClass" @attributes="InputAttributes" 
-    @onchange="OnInputChange" @oninput="OnInputType" @onfocus="onfocus" @onblur="onblur">
+<input type="@Type" id="@Id" value="@Value" class="p-inputtext p-component @(filled ? "p-filled" : "") @CssClass" @attributes="InputAttributes"
+       @onchange="OnInputChange" @oninput="OnInputType" @onfocus="onfocus" @onblur="onblur">
 
 @code {
 
     [Parameter]
     public string CssClass { get; set; }
+    [Parameter]
+    public string Id { get; set; }
+    [Parameter]
+    public string Type { get; set; } = "text";
 
     [Parameter]
     public string Value { get; set; }
@@ -32,24 +36,28 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object> InputAttributes { get; set; }
 
-    private async Task OnInputChange(ChangeEventArgs args) {
-        if (BindEvent.Equals("onchange")) 
+    private async Task OnInputChange(ChangeEventArgs args)
+    {
+        if (BindEvent.Equals("onchange"))
         {
-            await ValueChanged.InvokeAsync((string) args.Value);
+            await ValueChanged.InvokeAsync((string)args.Value);
         }
         await onchange.InvokeAsync(args);
     }
 
-    private async Task OnInputType(ChangeEventArgs args) {
-        if (BindEvent.Equals("oninput")) 
+    private async Task OnInputType(ChangeEventArgs args)
+    {
+        if (BindEvent.Equals("oninput"))
         {
-            await ValueChanged.InvokeAsync((string) args.Value);
+            await ValueChanged.InvokeAsync((string)args.Value);
         }
         await oninput.InvokeAsync(args);
     }
 
-    private bool filled {
-        get {
+    private bool filled
+    {
+        get
+        {
             return (Value != null && Value.Length > 0);
         }
     }
