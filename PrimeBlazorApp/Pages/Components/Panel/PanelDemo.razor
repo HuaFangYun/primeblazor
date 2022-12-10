@@ -1,4 +1,6 @@
- @page "/panel"
+@page "/panel"
+@using Microsoft.Extensions.Logging;
+@inject ILogger<PanelDemo> logger
 
  <div>
     <div class="content-section introduction">
@@ -25,6 +27,12 @@
                     <span class="font-semibold line-height-1">Custom Header</span>
                 </div>
             </Header>
+            <Icons>
+                <PrimeButton CssClass="p-panel-header-icon p-link" @onclick="toggle">
+                    <span class="pi pi-cog"></span>
+                </PrimeButton>
+                @*<Menu id="config_menu" ref="menu" :model="items" :popup="true" />*@
+            </Icons>
             <ChildContent>
                 <p class="line-height-3 m-0">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                     Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
@@ -36,5 +44,8 @@
 </div>
 
 @code {
-
+    private void toggle(MouseEventArgs e)
+    {
+        logger.LogInformation("µ¯³ö²Ëµ¥");
+    }
 }
