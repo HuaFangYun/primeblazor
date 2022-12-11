@@ -27,9 +27,9 @@
 </CascadingValue>
 
 @code {
-    public class PrimeAccordionEvent
+    public class PrimeAccordionCallback
     {
-        public PrimeAccordionEvent(MouseEventArgs originalEvent, PrimeAccordionTab tab)
+        public PrimeAccordionCallback(MouseEventArgs originalEvent, PrimeAccordionTab tab)
         {
             OriginalEvent = originalEvent;
             Tab = tab;
@@ -47,9 +47,9 @@
     [Parameter]
     public EventCallback<IList<int>> ActiveIndexChanged { get; set; }
     [Parameter]
-    public EventCallback<PrimeAccordionEvent> TabOpen { get; set; }
+    public EventCallback<PrimeAccordionCallback> TabOpen { get; set; }
     [Parameter]
-    public EventCallback<PrimeAccordionEvent> TabClose { get; set; }
+    public EventCallback<PrimeAccordionCallback> TabClose { get; set; }
 
     [Parameter]
     public RenderFragment ChildContent { get; set; }
@@ -101,11 +101,11 @@
         await ActiveIndexChanged.InvokeAsync(ActiveIndex);
         if (active)
         {
-            await TabClose.InvokeAsync(new PrimeAccordionEvent(e, tabs[index]));
+            TabClose.InvokeAsync(new PrimeAccordionCallback(e, tabs[index]));
         }
         else
         {
-            await TabOpen.InvokeAsync(new PrimeAccordionEvent(e, tabs[index]));
+            TabOpen.InvokeAsync(new PrimeAccordionCallback(e, tabs[index]));
         }
     }
 
