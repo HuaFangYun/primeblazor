@@ -1,11 +1,11 @@
 @namespace PrimeBlazor
 
 <CascadingValue Value="this">
-    <div class="@CssClass p-tabview p-component">
+    <div class="@CssClass p-tabview p-component @(Scrollable?"p-tabview-scrollable":"")">
         <div class="p-tabview-nav-container">
             <div class="p-tabview-nav-content">
                 <ul class="p-tabview-nav">
-                    @foreach (var item in tabs.Select((tab, i) => new {i, tab}))
+                    @foreach (var item in tabs.Select((tab, i) => new { i, tab }))
                     {
                         <li role="presentation" class="@(ActiveIndex == item.i ? "p-highlight" : "")">
                             <a role="tab" class="p-tabview-nav-link @(@item.tab.Disabled?"p-disabled":"")" @onclick="e => OnTabClick(e, item.i)">
@@ -21,7 +21,7 @@
             </div>
         </div>
         <div class="p-tabview-panels">
-            @foreach (var item in tabs.Select((tab, i) => new {i, tab}))
+            @foreach (var item in tabs.Select((tab, i) => new { i, tab }))
             {
                 @if (tabs.IndexOf(item.tab) == ActiveIndex)
                 {
@@ -37,7 +37,9 @@
 
 @code {
     [Parameter]
-    public string CssClass{ get; set; }
+    public bool Scrollable { get; set; }
+    [Parameter]
+    public string CssClass { get; set; }
 
     [Parameter]
     public int ActiveIndex { get; set; } = 0;
@@ -61,5 +63,77 @@
         ActiveIndex = index;
         await ActiveIndexChanged.InvokeAsync(index);
     }
-    
+
 }
+
+<style>
+    .p-tabview-nav-container {
+        position: relative;
+    }
+
+    .p-tabview-scrollable .p-tabview-nav-container {
+        overflow: hidden;
+    }
+
+    .p-tabview-nav-content {
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        overscroll-behavior: contain auto;
+    }
+
+    .p-tabview-nav {
+        display: flex;
+        margin: 0;
+        padding: 0;
+        list-style-type: none;
+        flex: 1 1 auto;
+    }
+
+    .p-tabview-nav-link {
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        position: relative;
+        text-decoration: none;
+        overflow: hidden;
+    }
+
+    .p-tabview-ink-bar {
+        display: none;
+        z-index: 1;
+    }
+
+    .p-tabview-nav-link:focus {
+        z-index: 1;
+    }
+
+    .p-tabview-title {
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .p-tabview-nav-btn {
+        position: absolute;
+        top: 0;
+        z-index: 2;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .p-tabview-nav-prev {
+        left: 0;
+    }
+
+    .p-tabview-nav-next {
+        right: 0;
+    }
+
+    .p-tabview-nav-content::-webkit-scrollbar {
+        display: none;
+    }
+</style>
