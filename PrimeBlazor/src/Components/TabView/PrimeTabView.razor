@@ -1,14 +1,14 @@
 @namespace PrimeBlazor
 
 <CascadingValue Value="this">
-    <div class="p-tabview p-component">
+    <div class="@CssClass p-tabview p-component">
         <div class="p-tabview-nav-container">
             <div class="p-tabview-nav-content">
                 <ul class="p-tabview-nav">
                     @foreach (var item in tabs.Select((tab, i) => new {i, tab}))
                     {
                         <li role="presentation" class="@(ActiveIndex == item.i ? "p-highlight" : "")">
-                            <a role="tab" class="p-tabview-nav-link" @onclick="e => OnTabClick(e, item.i)">
+                            <a role="tab" class="p-tabview-nav-link @(@item.tab.Disabled?"p-disabled":"")" @onclick="e => OnTabClick(e, item.i)">
                                 @if (item.tab.HeaderText != null)
                                 {
                                     <span class="p-tabview-title">@item.tab.HeaderText</span>
@@ -36,6 +36,8 @@
 </CascadingValue>
 
 @code {
+    [Parameter]
+    public string CssClass{ get; set; }
 
     [Parameter]
     public int ActiveIndex { get; set; } = 0;
