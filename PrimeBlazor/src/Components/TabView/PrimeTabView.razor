@@ -1,14 +1,21 @@
 @namespace PrimeBlazor
-
+@inject IJSRuntime JS;
 <CascadingValue Value="this">
     <div class="@CssClass p-tabview p-component @(Scrollable?"p-tabview-scrollable":"")">
         <div class="p-tabview-nav-container">
-            <div class="p-tabview-nav-content">
-                <ul class="p-tabview-nav">
+            @if (Scrollable && !BackwardIsDisabled)
+            {
+                <button @ref="prevBtn" class="p-tabview-nav-prev p-tabview-nav-btn p-link @(BackwardIsDisabled?"p-disabled":"")"
+                    disabled="@BackwardIsDisabled" @onclick="NavBackward" type="button" v-ripple>
+                    <span class="pi pi-chevron-left"></span>
+                </button>
+            }
+            <div @ref="content" class="p-tabview-nav-content" @onscroll="OnScroll" @onscroll:preventDefault>
+                <ul @ref="nav" class="p-tabview-nav" role="tablist">
                     @foreach (var item in tabs.Select((tab, i) => new { i, tab }))
                     {
-                        <li role="presentation" class="@(ActiveIndex == item.i ? "p-highlight" : "")">
-                            <a role="tab" class="p-tabview-nav-link @(@item.tab.Disabled?"p-disabled":"")" @onclick="e => OnTabClick(e, item.i)">
+                        <li role="presentation" class="@(ActiveIndex == item.i ? "p-highlight" : "") @(isTabDisabled(item.tab)?"p-disabled":"")">
+                            <a role="tab" class="p-tabview-nav-link" @onclick="e => OnTabClick(e, item.i)" @onkeydown="e=>{OnTabKeydown(e,item.i);}" tabindex="@(isTabDisabled(item.tab)?null:"0")" aria-selected="@ActiveIndex" v-ripple>
                                 @if (item.tab.HeaderText != null)
                                 {
                                     <span class="p-tabview-title">@item.tab.HeaderText</span>
@@ -16,16 +23,23 @@
                                 @item.tab.Header
                             </a>
                         </li>
+                        <li @ref="inkbar" class="p-tabview-ink-bar"></li>
                     }
                 </ul>
             </div>
+            @if (Scrollable && !ForwardIsDisabled)
+            {
+                <button @ref="nextBtn" class="p-tabview-nav-next p-tabview-nav-btn p-link @(ForwardIsDisabled?"p-disabled":"")" disabled="@ForwardIsDisabled" @onclick="navForward" type="button" v-ripple>
+                    <span class="pi pi-chevron-right"></span>
+                </button>
+            }
         </div>
         <div class="p-tabview-panels">
             @foreach (var item in tabs.Select((tab, i) => new { i, tab }))
             {
                 @if (tabs.IndexOf(item.tab) == ActiveIndex)
                 {
-                    <div class="p-tabview-panel">
+                    <div class="p-tabview-panel" role="tabpanel">
                         @item.tab.ChildContent
                     </div>
                 }
@@ -41,6 +55,7 @@
     [Parameter]
     public string CssClass { get; set; }
 
+    private int thisActiveIndex = 0;
     [Parameter]
     public int ActiveIndex { get; set; } = 0;
 
@@ -49,8 +64,15 @@
 
     [Parameter]
     public RenderFragment ChildContent { get; set; }
+    private ElementReference prevBtn { get; set; }
+    private ElementReference content { get; set; }
+    private ElementReference nav { get; set; }
+    private ElementReference inkbar { get; set; }
+    private ElementReference nextBtn { get; set; }
 
     internal IList<PrimeTabPanel> tabs = new List<PrimeTabPanel>();
+    private bool BackwardIsDisabled = false;
+    private bool ForwardIsDisabled = false;
 
     internal void AddTab(PrimeTabPanel tab)
     {
@@ -63,7 +85,47 @@
         ActiveIndex = index;
         await ActiveIndexChanged.InvokeAsync(index);
     }
+    private async Task<int> getVisibleButtonWidths()
+    {
+        return await JS.InvokeAsync<int>("DomHandler.getVisibleButtonWidths", prevBtn, nextBtn);
+    }
+    private async Task NavBackward()
+    {
+        int width = await JS.InvokeAsync<int>("DomHandler.getWidth", content) - await getVisibleButtonWidths();
+        int pos = await JS.InvokeAsync<int>("DomHandler.getscrollLeft", content) - width;
+        await JS.InvokeVoidAsync("DomHandler.setscrollLeft", content, pos <= 0 ? 0 : pos);
+    }
+    private async Task updateButtonState()
+    {
+        int scrollLeft = await JS.InvokeAsync<int>("DomHandler.getscrollLeft", content);
+        int scrollWidth = await JS.InvokeAsync<int>("DomHandler.getscrollWidth", content);
+        int width = await JS.InvokeAsync<int>("DomHandler.getWidth", content);
+        this.BackwardIsDisabled = scrollLeft == 0;
+        this.ForwardIsDisabled = scrollLeft == scrollWidth - width;
+    }
+    private async Task OnScroll()
+    {
+        await updateButtonState();
+    }
+    private bool isTabDisabled(PrimeTabPanel tab)
+    {
+        return tab.Disabled;
+    }
+    public async void OnTabKeydown(KeyboardEventArgs e, int index)
+    {
+        if (e.Key.Equals("Tab"))
+        {
+            await this.OnTabClick(null, index);
+        }
+    }
+    public async Task navForward()
+    {
+        int width = await JS.InvokeAsync<int>("DomHandler.getWidth", content) - await getVisibleButtonWidths();
+        int pos = await JS.InvokeAsync<int>("DomHandler.getscrollLeft", content) + width;
+        int lastPos = await JS.InvokeAsync<int>("DomHandler.getscrollWidth", content) - width;
+        await JS.InvokeVoidAsync("DomHandler.setscrollLeft", content, pos >= lastPos ? lastPos : pos);
 
+    }
 }
 
 <style>

@@ -529,5 +529,17 @@
         else
             newPos = (event.pageY * 100 / size) - (startPos * 100 / size);
         return newPos;
+    },
+    getVisibleButtonWidths(prev, next) {
+        return [prev, next].reduce((acc, el) => el ? acc + DomHandler.getWidth(el) : acc, 0);
+    },
+    getscrollLeft(el) {
+        return el.scrollLeft;
+    },
+    setscrollLeft(el, val) {
+        el.scrollLeft = val;
+    },
+    getscrollWidth(el) {
+        return el.scrollWidth;
     }
 }
