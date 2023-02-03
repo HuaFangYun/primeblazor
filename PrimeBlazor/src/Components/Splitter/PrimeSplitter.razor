@@ -1,0 +1,379 @@
+﻿@namespace PrimeBlazor
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject IJSRuntime JS
+
+<CascadingValue Value="this">
+    <div style="@Style" class="p-splitter p-component p-splitter-@Layout" @ref=thisElement>
+        @ChildContent
+        @foreach (var item in allChildren.Select((panel, i) => new { i, panel }))
+        {
+            <div key="@item.i"
+             class="p-splitter-panel @item.panel.CssClass p-splitter-panel-nested"
+             style="flex-basis:calc(@(item.panel.Size == null ? (100 / allChildren.Count) : item.panel.Size.Value)% - @((panels.Count-1)*GutterSize)px)">
+                @item.panel.ChildContent
+            </div>
+            @if (item.i != this.panels.Count - 1)
+            {
+               @* <div class="p-splitter"
+             id="prime-splitter-panel-@item.i"
+             style="@gutterStyle">
+                    <div class="p-splitter-gutter-handle">
+                    </div>
+                </div>*@
+                 <div class="p-splitter-gutter"
+        id="prime-splitter-panel-@item.i"
+        style="@gutterStyle"
+        @onmousedown="e=>OnGuttterMouseDown(e,item.i)"
+        @onmouseup="e=>mouseUpListener(e)"
+        @onmousemove="e=>mouseMoveListener(e)">
+        <div class="p-splitter-gutter-handle">
+        </div>
+        </div>
+                @* <div class="p-splitter-gutter"
+        id="prime-splitter-panel-@item.i"
+        style="@gutterStyle"
+        @onmousedown="e=>OnGuttterMouseDown(e,item.i)"
+        @ontouchstart="e=>OnGutterTouchStart(e,item.i)" @ontouchstart:preventDefault
+        @ontouchmove="e=>OnGutterTouchMove(e)" @ontouchmove:preventDefault
+        @ontouchend="e=>OnGutterTouchEnd(e)" @ontouchend:preventDefault>
+        <div class="p-splitter-gutter-handle">
+        </div>
+        </div>*@
+            }
+        }
+    </div>
+</CascadingValue>
+@code {
+    private DotNetObjectReference<PrimeSplitter>? objRef;
+    public class ResizeendCallback
+    {
+        public ResizeendCallback(EventArgs originalEvent, List<double> sizes)
+        {
+            OriginalEvent = originalEvent;
+            Sizes = sizes;
+        }
+
+        public EventArgs OriginalEvent { get; }
+        public List<double> Sizes { get; }
+    }
+    [Parameter]
+    public string Style { get; set; }
+    [Parameter]
+    public string Layout { get; set; } = "horizontal";
+    [Parameter]
+    public int GutterSize { get; set; } = 4;
+    [Parameter]
+    public string StateKey { get; set; } = null;
+    [Parameter]
+    public string StateStorage { get; set; } = "session";
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+    [Parameter]
+    public EventCallback<ResizeendCallback> Resizeend { get; set; }
+
+    private ElementReference thisElement { get; set; }
+    private IJSObjectReference gutterElement;
+    private int? size;
+    private bool dragging;
+    private double? startPos;
+    private IJSObjectReference prevPanelElement;
+    private IJSObjectReference nextPanelElement;
+    private int? prevPanelSize;
+    private int? nextPanelSize;
+    private int? prevPanelIndex;
+    private List<double> panelSizes = new List<double>();
+
+
+    internal IList<PrimeSplitterPanel> allChildren = new List<PrimeSplitterPanel>();
+    internal void AddPanel(PrimeSplitterPanel panel)
+    {
+        allChildren.Add(panel);
+        panelSizes.Add(panel.Size == null ? 100 / this.panels.Count : panel.Size.Value);
+        StateHasChanged();
+    }
+
+    private IList<PrimeSplitterPanel> panels
+    {
+        get
+        {
+            List<PrimeSplitterPanel> panels = new List<PrimeSplitterPanel>();
+            if (this.allChildren.Any())
+            {
+                panels = this.allChildren.ToList();
+            }
+            return panels;
+        }
+    }
+    private string gutterStyle
+    {
+        get
+        {
+            if (this.horizontal)
+                return $"width:{this.GutterSize}px";
+            else
+                return $"height:{this.GutterSize}px";
+        }
+    }
+
+    private bool horizontal
+    {
+        get
+        {
+            return this.Layout.Equals("horizontal");
+        }
+    }
+
+    private delegate Task MouseMoveListener(MouseEventArgs e);
+    private delegate Task MouseUpListener(MouseEventArgs e);
+
+    MouseMoveListener mouseMoveListener;
+    bool mouseMove = false;
+    MouseUpListener mouseUpListener;
+    bool mouseUp = false;
+
+    protected override void OnInitialized()
+    {
+        mouseMoveListener = new MouseMoveListener(KK);
+        mouseUpListener = new MouseUpListener(KK);
+        objRef = DotNetObjectReference.Create(this);
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            bool initialized = false;
+            if (this.IsStateful())
+                initialized = this.RestoreState();
+        }
+    }
+
+    private async Task OnResizeStart(EventArgs e, int index)
+    {
+        this.gutterElement = await JS.InvokeAsync<IJSObjectReference>("document.getElementById", $"prime-splitter-panel-{index}");
+        this.size = this.horizontal ?
+                            await JS.InvokeAsync<int>("DomHandler.getWidth", thisElement) :
+                            await JS.InvokeAsync<int>("DomHandler.getHeight", thisElement);
+        this.dragging = true;
+        this.startPos = e is MouseEventArgs ?
+        this.Layout.Equals("horizontal") ? ((MouseEventArgs)e).PageX : ((MouseEventArgs)e).PageY
+        : this.Layout.Equals("horizontal") ? ((TouchEventArgs)e).TargetTouches[0].PageX : ((TouchEventArgs)e).TargetTouches[0].PageY;
+        this.prevPanelElement = await JS.InvokeAsync<IJSObjectReference>("DomHandler.previousElementSibling", this.gutterElement);
+        this.nextPanelElement = await JS.InvokeAsync<IJSObjectReference>("DomHandler.nextElementSibling", this.gutterElement);
+        this.prevPanelSize = 100 * (
+            this.horizontal ?
+                 await JS.InvokeAsync<int>("DomHandler.getOuterWidth", this.prevPanelElement, true) :
+                 await JS.InvokeAsync<int>("DomHandler.getOuterHeight", this.prevPanelElement, true)
+        ) / this.size;
+        this.nextPanelSize = 100 * (
+            this.horizontal ?
+                await JS.InvokeAsync<int>("DomHandler.getOuterWidth", this.nextPanelElement, true) :
+                await JS.InvokeAsync<int>("DomHandler.getOuterHeight", this.nextPanelElement, true)
+            ) / this.size;
+        this.prevPanelIndex = index;
+        await JS.InvokeVoidAsync("DomHandler.addClass", this.gutterElement, "p-splitter-gutter-resizing");
+        await JS.InvokeVoidAsync("DomHandler.addClass", thisElement, "p-splitter-resizing");
+    }
+    [JSInvokable]
+    public async Task OnResize(MouseEventArgs e)
+    {
+        double newPos = await JS.InvokeAsync<double>("DomHandler.primeSplitter_OnResizeGetNewPos", this.horizontal, size, startPos, e);
+
+        //if (this.horizontal)
+        //    newPos = (((e is TouchEventArgs) ? ((TouchEventArgs)e).TargetTouches[0].PageX : ((MouseEventArgs)e).PageX) * 100 / this.size.Value) - (this.startPos.Value * 100 / this.size.Value);
+        //else
+        //    newPos = (((e is TouchEventArgs) ? ((TouchEventArgs)e).TargetTouches[0].PageY : ((MouseEventArgs)e).PageY) * 100 / this.size.Value) - (this.startPos.Value * 100 / this.size.Value);
+
+        double newPrevPanelSize = this.prevPanelSize.Value + newPos;
+        double newNextPanelSize = this.nextPanelSize.Value - newPos;
+        if (this.ValidateResize(newPrevPanelSize, newNextPanelSize))
+        {
+            await JS.InvokeVoidAsync("DomHandler.setStyleFlexBasis", this.prevPanelElement, $"calc({newPrevPanelSize}% - {((this.panels.Count - 1) * this.GutterSize)}px");
+            await JS.InvokeVoidAsync("DomHandler.setStyleFlexBasis", this.nextPanelElement, $"calc({newNextPanelSize}% - {((this.panels.Count - 1) * this.GutterSize)}px");
+            this.panelSizes[this.prevPanelIndex.Value] = newPrevPanelSize;
+            this.panelSizes[this.prevPanelIndex.Value + 1] = newNextPanelSize;
+        }
+
+    }
+
+    [JSInvokable]
+    public async Task OnResizeEnd(EventArgs e)
+    {
+        if (this.IsStateful())
+        {
+            this.SaveState();
+        }
+        await Resizeend.InvokeAsync(new ResizeendCallback(e, this.panelSizes));
+        await JS.InvokeVoidAsync("DomHandler.removeClass", this.gutterElement, "p-splitter-gutter-resizing");
+        await JS.InvokeVoidAsync("DomHandler.removeClass", this.thisElement, "p-splitter-resizing");
+        this.Clear();
+    }
+    private async Task OnGuttterMouseDown(MouseEventArgs e, int index)
+    {
+        await OnResizeStart(e, index);
+        await BindMouseListeners();
+    }
+    private async Task BindMouseListeners()
+    {
+        if (!mouseMove)
+        {
+            mouseMoveListener = new MouseMoveListener(OnResize);
+            mouseMove = true;
+        }
+        if (!mouseUp)
+        {
+            mouseUpListener = new MouseUpListener(ResizeEndUnBind);
+            mouseUp = true;
+        }
+    }
+    private async Task ResizeEndUnBind(MouseEventArgs e)
+    {
+        await OnResizeEnd(e);
+        await UnbindMouseListeners();
+    }
+
+    private async Task UnbindMouseListeners()
+    {
+        if (mouseMove)
+        {
+            mouseMoveListener = new MouseMoveListener(KK);
+            mouseMove = false;
+        }
+        if (mouseUp)
+        {
+            mouseUpListener = new MouseUpListener(KK);
+            mouseUp = false;
+        }
+    }
+    private async Task KK(MouseEventArgs e)
+    {
+
+    }
+
+
+    private bool ValidateResize(double newPrevPanelSize, double newNextPanelSize)
+    {
+        if (this.panels[0] != null && this.panels[0].MinSize != null && this.panels[0].MinSize > newPrevPanelSize)
+        {
+            return false;
+        }
+
+        if (this.panels[1] != null && this.panels[1].MinSize != null && this.panels[1].MinSize > newNextPanelSize)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void Clear()
+    {
+        this.dragging = false;
+        this.size = null;
+        this.startPos = null;
+        this.prevPanelElement = null;
+        this.nextPanelElement = null;
+        this.prevPanelSize = null;
+        this.nextPanelSize = null;
+        this.gutterElement = null;
+        this.prevPanelIndex = null;
+    }
+    private bool IsStateful()
+    {
+        return this.StateKey != null;
+    }
+    private dynamic GetStorage()
+    {
+
+        switch (this.StateStorage)
+        {
+            case "local":
+                return localStorage;
+
+            case "session":
+                return sessionStorage;
+
+            default:
+                throw new ArgumentNullException($"{StateStorage} is not a valid value for the state storage, supported values are \"local\" and \"session\".");
+        }
+    }
+    private void SaveState()
+    {
+        this.GetStorage().SetItem(this.StateKey, System.Text.Json.JsonSerializer.Serialize(this.panelSizes));
+    }
+    private bool RestoreState()
+    {
+        dynamic storage = this.GetStorage();
+        string stateString = storage.GetItem<string>
+        (this.StateKey);
+
+        if (string.IsNullOrWhiteSpace(stateString))
+        {
+            this.panelSizes = System.Text.Json.JsonSerializer.Deserialize<List<double>>(stateString);
+            return true;
+        }
+
+        return false;
+    }
+}
+
+<style>
+    .p-splitter {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+
+    .p-splitter-vertical {
+        flex-direction: column;
+    }
+
+    .p-splitter-panel {
+        flex-grow: 1;
+    }
+
+    .p-splitter-panel-nested {
+        display: flex;
+    }
+
+    .p-splitter-panel .p-splitter {
+        flex-grow: 1;
+        border: 0 none;
+    }
+
+    .p-splitter-gutter {
+        flex-grow: 0;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: col-resize;
+    }
+
+    .p-splitter-horizontal.p-splitter-resizing {
+        cursor: col-resize;
+        user-select: none;
+    }
+
+    .p-splitter-horizontal > .p-splitter-gutter > .p-splitter-gutter-handle {
+        height: 24px;
+        width: 100%;
+    }
+
+    .p-splitter-horizontal > .p-splitter-gutter {
+        cursor: col-resize;
+    }
+
+    .p-splitter-vertical.p-splitter-resizing {
+        cursor: row-resize;
+        user-select: none;
+    }
+
+    .p-splitter-vertical > .p-splitter-gutter {
+        cursor: row-resize;
+    }
+
+        .p-splitter-vertical > .p-splitter-gutter > .p-splitter-gutter-handle {
+            width: 24px;
+            height: 100%;
+        }
+</style>

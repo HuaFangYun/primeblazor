@@ -1,0 +1,54 @@
+﻿@page "/splitter"
+
+<div class="card">
+    <h5>Horizontal</h5>
+    <PrimeSplitter Style="height: 300px">
+        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center">
+            Panel 1
+        </PrimeSplitterPanel>
+        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center">
+            Panel 2
+        </PrimeSplitterPanel>
+    </PrimeSplitter>
+</div>
+<div class="card">
+    <h5>Vertical</h5>
+    <PrimeSplitter Style="height: 300px" Layout="vertical">
+        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center">
+            Panel 1
+        </PrimeSplitterPanel>
+        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center">
+            Panel 2
+        </PrimeSplitterPanel>
+    </PrimeSplitter>
+</div>
+
+<div class="card">
+    <h5>Nested</h5>
+    <PrimeSplitter Style="height: 300px">
+        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center" Size="20" MinSize="10">
+            Panel 1
+        </PrimeSplitterPanel>
+        <PrimeSplitterPanel Size="80">
+            <PrimeSplitter Layout="vertical">
+                <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center" Size="15">
+                    Panel 2
+                </PrimeSplitterPanel>
+                <PrimeSplitterPanel Size="85">
+                    <PrimeSplitter>
+                        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center" Size="20">
+                            Panel 3
+                        </PrimeSplitterPanel>
+                        <PrimeSplitterPanel CssClass="flex align-items-center justify-content-center" Size="80">
+                            Panel 4
+                        </PrimeSplitterPanel>
+                    </PrimeSplitter>
+                </PrimeSplitterPanel>
+            </PrimeSplitter>
+        </PrimeSplitterPanel>
+    </PrimeSplitter>
+</div>
+
+@code {
+
+}

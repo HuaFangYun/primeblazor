@@ -1,13 +1,13 @@
 @namespace PrimeBlazor
 
 <CascadingValue Value="this">
-    <div class="p-accordion p-component">
-        @foreach (var item in tabs.Select((tab, i) => new {i, tab}))
+    <div class="p-accordion p-component @CssClass">
+        @foreach (var item in tabs.Select((tab, i) => new { i, tab }))
         {
             <div class="p-accordion-tab @(IsTabActive(item.i) ? "p-accordion-tab-active": "")">
-                <div class="p-accordion-header @(IsTabActive(item.i) ? "p-highlight": "")">
+                <div class="p-accordion-header @(IsTabActive(item.i) ? "p-highlight": "") @(item.tab.Disabled ? "p-disabled":"")">
                     <a role="tab" class="p-accordion-header-link" @onclick="e => OnTabClick(e, item.i)">
-                        <span></span>
+                        <span class="p-accordion-toggle-icon pi @(IsTabActive(item.i)? CollapseIcon : ExpandIcon)"></span>
                         @if (item.tab.HeaderText != null)
                         {
                             <span class="p-accordion-header-text">@item.tab.HeaderText</span>
@@ -27,7 +27,17 @@
 </CascadingValue>
 
 @code {
+    public class PrimeAccordionCallback
+    {
+        public PrimeAccordionCallback(MouseEventArgs originalEvent, PrimeAccordionTab tab)
+        {
+            OriginalEvent = originalEvent;
+            Tab = tab;
+        }
 
+        public MouseEventArgs OriginalEvent { get; }
+        public PrimeAccordionTab Tab { get; }
+    }
     [Parameter]
     public IList<int> ActiveIndex { get; set; } = new List<int>();
 
@@ -36,9 +46,19 @@
 
     [Parameter]
     public EventCallback<IList<int>> ActiveIndexChanged { get; set; }
+    [Parameter]
+    public EventCallback<PrimeAccordionCallback> TabOpen { get; set; }
+    [Parameter]
+    public EventCallback<PrimeAccordionCallback> TabClose { get; set; }
 
     [Parameter]
     public RenderFragment ChildContent { get; set; }
+    [Parameter]
+    public string ExpandIcon { get; set; } = "pi-chevron-right";
+    [Parameter]
+    public string CollapseIcon { get; set; } = "pi-chevron-down";
+    [Parameter]
+    public string CssClass { get; set; }
 
     internal IList<PrimeAccordionTab> tabs = new List<PrimeAccordionTab>();
 
@@ -61,21 +81,36 @@
             else
             {
                 if (ActiveIndex == null)
-                    ActiveIndex = new List<int>(){index};
+                    ActiveIndex = new List<int>() { index };
                 else
-                    ((IList<int>) ActiveIndex).Add(index);
+                    ((IList<int>)ActiveIndex).Add(index);
             }
         }
         else
         {
-            ActiveIndex = new List<int>{index};
+            if (active)
+            {
+                ActiveIndex.Remove(index);
+            }
+            else
+            {
+                ActiveIndex = new List<int> { index };
+            }
         }
 
         await ActiveIndexChanged.InvokeAsync(ActiveIndex);
+        if (active)
+        {
+            TabClose.InvokeAsync(new PrimeAccordionCallback(e, tabs[index]));
+        }
+        else
+        {
+            TabOpen.InvokeAsync(new PrimeAccordionCallback(e, tabs[index]));
+        }
     }
 
-    internal bool IsTabActive(int index) {
+    internal bool IsTabActive(int index)
+    {
         return ActiveIndex != null ? ActiveIndex.Contains(index) : false;
     }
-    
 }
